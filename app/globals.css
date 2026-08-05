@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: cmyk --default, night --prefersdark;
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+.wiggle-animation {
+  animation: wiggle 1.5s ease-in-out infinite;
+}
+
+/* React toastify — thème clair (cmyk) */
+:root,
+[data-theme="cmyk"] {
+  --toastify-color-light: #f5f5f5;
+  --toastify-text-color-light: #1f2937;
+  --toastify-color-progress-light: #0096c7;
+}
+
+/* React toastify — thème sombre (night) */
+[data-theme="night"] {
+  --toastify-color-light: #0f1729;
+  --toastify-text-color-light: #e2e8f0;
+  --toastify-color-progress-light: #38bdf8;
+}
