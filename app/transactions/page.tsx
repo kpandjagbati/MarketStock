@@ -3,10 +3,11 @@ import { Product, Transaction } from '@/type'
 import { useUser } from '@clerk/nextjs'
 import React, { useEffect, useState } from 'react'
 import Wrapper from '../components/Wrapper'
-import { getTransactions, readProducts } from '../actions'
+import { getAssociation, getTransactions, readProducts } from '../actions'
 import EmptyState from '../components/EmptyState'
 import TransactionComponent from '../components/TransactionComponent'
-import { RotateCcw, Search } from 'lucide-react'
+import { Download, FileSpreadsheet, RotateCcw, Search } from 'lucide-react'
+import { exportTransactionsCsv, exportTransactionsPdf } from '@/lib/export'
 
 const ITEMS_PER_PAGE = 5
 
@@ -25,17 +26,24 @@ const page = () => {
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
     const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
     const [currentPage, setCurrentPage] = useState<number>(1)
+    const [assocName, setAssocName] = useState("MarketStock")
 
     const fetchData = async () => {
         try {
             if (email) {
-                const products = await readProducts(email)
-                const txs = await getTransactions(email)
+                const [products, txs, assoc] = await Promise.all([
+                    readProducts(email),
+                    getTransactions(email),
+                    getAssociation(email),
+                ])
                 if (products) {
                     setProducts(products)
                 }
                 if (txs) {
                     setTransactions(txs)
+                }
+                if (assoc) {
+                    setAssocName(assoc.name || "MarketStock")
                 }
             }
         } catch (error) {
@@ -61,7 +69,9 @@ const page = () => {
         if (query) {
             filtered = filtered.filter((tx) =>
                 tx.productName.toLowerCase().includes(query) ||
-                tx.categoryName.toLowerCase().includes(query)
+                tx.categoryName.toLowerCase().includes(query) ||
+                (tx.beneficiary || "").toLowerCase().includes(query) ||
+                (tx.reason || "").toLowerCase().includes(query)
             )
         }
         if (dateFrom) {
@@ -160,6 +170,27 @@ const page = () => {
                             onClick={resetFilters}
                         >
                             <RotateCcw className='w-4 h-4' />
+                        </button>
+
+                        <button
+                            className='btn btn-outline'
+                            disabled={filteredTransactions.length === 0}
+                            onClick={() => exportTransactionsCsv(filteredTransactions)}
+                        >
+                            <FileSpreadsheet className='w-4 h-4' />
+                            CSV
+                        </button>
+                        <button
+                            className='btn btn-primary'
+                            disabled={filteredTransactions.length === 0}
+                            onClick={() =>
+                                exportTransactionsPdf(filteredTransactions, {
+                                    title: `Transactions — ${assocName}`,
+                                })
+                            }
+                        >
+                            <Download className='w-4 h-4' />
+                            PDF
                         </button>
                     </div>
 

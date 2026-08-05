@@ -8,13 +8,15 @@ datasource db {
 }
 
 model Association {
-  id           String        @id @default(uuid())
-  name         String
-  email        String        @unique
+  id                 String        @id @default(uuid())
+  name               String
+  email              String        @unique
+  currency           String        @default("EUR")
+  defaultMinQuantity Int           @default(5)
 
-  products     Product[]
-  categories   Category[]
-  transactions Transaction[]
+  products           Product[]
+  categories         Category[]
+  transactions       Transaction[]
 }
 
 model Product {
@@ -43,7 +45,6 @@ model Category {
   name           String
   description    String?
 
-
   associationId  String?
   association    Association?  @relation(fields: [associationId], references: [id])
   products       Product[]
@@ -55,6 +56,8 @@ model Transaction {
   quantity       Int
   productId      String
   associationId  String?
+  beneficiary    String?
+  reason         String?
 
   product        Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   association    Association?  @relation(fields: [associationId], references: [id])

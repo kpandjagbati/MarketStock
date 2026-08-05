@@ -22,6 +22,7 @@ const page = ({ params }: { params: Promise<{ productId: string }> }) => {
         name: "",
         description: "",
         price: 0,
+        quantity: 0,
         imageUrl: "",
         categoryName: "",
         minQuantity: 5,
@@ -40,6 +41,7 @@ const page = ({ params }: { params: Promise<{ productId: string }> }) => {
                         name: fetchedProduct.name,
                         description: fetchedProduct.description,
                         price: fetchedProduct.price,
+                        quantity: fetchedProduct.quantity,
                         imageUrl: fetchedProduct.imageUrl,
                         categoryName: fetchedProduct.categoryName,
                         minQuantity: fetchedProduct.minQuantity,
@@ -169,6 +171,19 @@ const page = ({ params }: { params: Promise<{ productId: string }> }) => {
                                         onChange={handleInputChange}
                                     />
                                 </div>
+
+                                <div className='text-sm font-semibold mb-2 mt-2'>Quantité en stock</div>
+                                <input
+                                    type="number"
+                                    name="quantity"
+                                    min={0}
+                                    className='input input-bordered w-full'
+                                    value={formData.quantity ?? 0}
+                                    onChange={handleInputChange}
+                                />
+                                <p className='text-xs opacity-60'>
+                                    Modifier la quantité met à jour le stock et crée une transaction d&apos;ajustement
+                                </p>
 
                                 <div className='text-sm font-semibold mb-2 mt-2'>Seuil d&apos;alerte stock</div>
                                 <input

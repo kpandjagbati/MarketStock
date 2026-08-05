@@ -3,13 +3,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Wrapper from '../components/Wrapper'
 import { useUser } from '@clerk/nextjs'
 import { Product } from '@/type'
-import { deleteProduct, readCategories, readProducts } from '../actions'
+import { deleteProduct, getAssociation, readCategories, readProducts } from '../actions'
 import EmptyState from '../components/EmptyState'
 import ProductImage from '../components/ProductImage'
 import Link from 'next/link'
-import { RotateCcw, Search, Trash } from 'lucide-react'
+import { Download, FileSpreadsheet, RotateCcw, Search, Trash } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { Category } from '@prisma/client'
+import { exportProductsCsv, exportProductsPdf } from '@/lib/export'
+import { formatMoney } from '@/lib/format'
 
 type StockFilter = "all" | "ok" | "low" | "out"
 
@@ -21,16 +23,23 @@ const page = () => {
     const [search, setSearch] = useState("")
     const [categoryId, setCategoryId] = useState("")
     const [stockFilter, setStockFilter] = useState<StockFilter>("all")
+    const [currency, setCurrency] = useState("EUR")
+    const [assocName, setAssocName] = useState("MarketStock")
 
     const fetchProducts = async () => {
         try {
             if (email) {
-                const [productsData, categoriesData] = await Promise.all([
+                const [productsData, categoriesData, assoc] = await Promise.all([
                     readProducts(email),
                     readCategories(email),
+                    getAssociation(email),
                 ])
                 if (productsData) setProducts(productsData)
                 if (categoriesData) setCategories(categoriesData)
+                if (assoc) {
+                    setCurrency(assoc.currency || "EUR")
+                    setAssocName(assoc.name || "MarketStock")
+                }
             }
         } catch (error) {
             console.error(error)
@@ -145,6 +154,30 @@ const page = () => {
                     <RotateCcw className='w-4 h-4' />
                     Réinitialiser
                 </button>
+
+                <div className='flex gap-2 md:ml-auto'>
+                    <button
+                        className='btn btn-sm btn-outline'
+                        disabled={filteredProducts.length === 0}
+                        onClick={() => exportProductsCsv(filteredProducts, currency)}
+                    >
+                        <FileSpreadsheet className='w-4 h-4' />
+                        CSV
+                    </button>
+                    <button
+                        className='btn btn-sm btn-primary'
+                        disabled={filteredProducts.length === 0}
+                        onClick={() =>
+                            exportProductsPdf(filteredProducts, {
+                                title: `Inventaire — ${assocName}`,
+                                currency,
+                            })
+                        }
+                    >
+                        <Download className='w-4 h-4' />
+                        PDF
+                    </button>
+                </div>
             </div>
 
             <div className='overflow-x-auto'>
@@ -195,7 +228,7 @@ const page = () => {
                                         {product.description}
                                     </td>
                                     <td>
-                                        {product.price} €
+                                        {formatMoney(product.price, currency)}
                                     </td>
                                     <td className='capitalize'>
                                         {product.quantity} {product.unit}

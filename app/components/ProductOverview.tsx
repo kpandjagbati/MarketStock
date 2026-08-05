@@ -1,30 +1,31 @@
 import { ProductOverviewStats } from '@/type'
 import React, { useEffect, useState } from 'react'
-import { getProductOverviewStats } from '../actions'
+import { getAssociation, getProductOverviewStats } from '../actions'
 import { AlertTriangle, Box, DollarSign, ShoppingCart, Tag } from 'lucide-react'
+import { formatMoney } from '@/lib/format'
 
 const ProductOverview = ({ email }: { email: string }) => {
     const [stats, setStats] = useState<ProductOverviewStats | null>(null)
+    const [currency, setCurrency] = useState("EUR")
 
     const fetchStats = async () => {
         try {
             if (email) {
-                const result = await getProductOverviewStats(email)
+                const [result, assoc] = await Promise.all([
+                    getProductOverviewStats(email),
+                    getAssociation(email),
+                ])
                 if (result) {
                     setStats(result)
+                }
+                if (assoc?.currency) {
+                    setCurrency(assoc.currency)
                 }
             }
         } catch (error) {
             console.error(error)
         }
     }
-
-    function formatNumber(value: number): string {
-        if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + "M";
-        if (value >= 1_000) return (value / 1_000).toFixed(1) + "k";
-        return value.toFixed(1);
-    }
-
 
     useEffect(() => {
         if (email)
@@ -59,7 +60,9 @@ const ProductOverview = ({ email }: { email: string }) => {
                     <div className='border-2 p-4 border-base-200 rounded-3xl'>
                         <p className='stat-title'>Valeur totale du stock</p>
                         <div className='flex justify-between items-center'>
-                            <div className='stat-value'>{formatNumber (stats.stockValue)} €</div>
+                            <div className='stat-value text-xl md:text-3xl'>
+                                {formatMoney(stats.stockValue, currency)}
+                            </div>
                             <div className='bg-primary/25 p-3 rounded-full'>
                                 <DollarSign className='w-5 h-5 text-primary text-3xl' />
                             </div>

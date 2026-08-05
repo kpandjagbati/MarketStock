@@ -1,5 +1,6 @@
 import { Product as PrismaProduct } from "@prisma/client"
 import { Transaction as PrismaTransaction } from "@prisma/client"
+import { Association as PrismaAssociation } from "@prisma/client"
 
 export interface Product extends PrismaProduct {
     categoryName: string;
@@ -27,6 +28,11 @@ export interface OrderItem {
     availableQuantity: number;
 };
 
+export interface DonationMeta {
+    beneficiary: string;
+    reason: string;
+}
+
 export interface Transaction extends PrismaTransaction {
     categoryName: string;
     productName: string;
@@ -53,4 +59,12 @@ export interface StockSummary {
     lowStockCount: number;
     outOfStockCount: number;
     criticalProducts: Product[];
-  }
+}
+
+export interface AssociationSettings extends PrismaAssociation {}
+
+export interface AssociationSettingsInput {
+    name: string;
+    currency: string;
+    defaultMinQuantity: number;
+}

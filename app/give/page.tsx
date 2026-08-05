@@ -5,7 +5,6 @@ import { useUser } from '@clerk/nextjs'
 import React, { useEffect, useState } from 'react'
 import { deductStockWithTransaction, readProducts } from '../actions'
 import Wrapper from '../components/Wrapper'
-import { text } from 'stream/consumers'
 import ProductComponent from '../components/ProductComponent'
 import EmptyState from '../components/EmptyState'
 import ProductImage from '../components/ProductImage'
@@ -20,6 +19,8 @@ const page = () => {
     const [order, setOrder] = useState<OrderItem[]>([])
     const [searchQuery, setSearchQuery] = useState<string>("")
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+    const [beneficiary, setBeneficiary] = useState("")
+    const [reason, setReason] = useState("")
 
 
     const fetchProducts = async () => {
@@ -108,12 +109,26 @@ const page = () => {
                 toast.error("Veuillez ajouter des produits à la commande.")
                 return
             }
-            const response = await deductStockWithTransaction(order, email)
+            if (!beneficiary.trim()) {
+                toast.error("Veuillez indiquer le bénéficiaire du don.")
+                return
+            }
+            if (!reason.trim()) {
+                toast.error("Veuillez indiquer le motif du don.")
+                return
+            }
+
+            const response = await deductStockWithTransaction(order, email, {
+                beneficiary: beneficiary.trim(),
+                reason: reason.trim(),
+            })
 
             if (response?.success) {
                 toast.success("Don confirmé avec succès !")
                 setOrder([])
                 setSelectedProductIds([])
+                setBeneficiary("")
+                setReason("")
                 fetchProducts();
             } else {
                 toast.error(`${response?.message}`)
@@ -156,6 +171,33 @@ const page = () => {
                 <div className='md:w-2/3 p-4 md:ml-4 mb-4 md:mb-0 h-fit border-2 border-base-200 rounded-3xl overflow-x-auto'>
                     {order.length > 0 ? (
                         <>
+                            <div className='grid gap-3 mb-4 md:grid-cols-2'>
+                                <div>
+                                    <label className='text-sm font-semibold mb-1 block'>
+                                        Bénéficiaire
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className='input input-bordered w-full'
+                                        placeholder='Ex. Famille Dupont, École...'
+                                        value={beneficiary}
+                                        onChange={(e) => setBeneficiary(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className='text-sm font-semibold mb-1 block'>
+                                        Motif
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className='input input-bordered w-full'
+                                        placeholder='Ex. Aide alimentaire, urgence...'
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
                             <table className='table w-full scroll-auto'>
                                 <thead>
                                     <tr>

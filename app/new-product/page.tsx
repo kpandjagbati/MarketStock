@@ -4,7 +4,7 @@ import Wrapper from '../components/Wrapper'
 import { useUser } from '@clerk/nextjs'
 import { Category } from '@prisma/client'
 import { FormDataType } from '@/type'
-import { createProduct, readCategories } from '../actions'
+import { createProduct, getAssociation, readCategories } from '../actions'
 import { FileImage } from 'lucide-react'
 import ProductImage from '../components/ProductImage'
 import { toast } from 'react-toastify'
@@ -23,6 +23,7 @@ const page = () => {
     name: "",
     description: "",
     price: 0,
+    quantity: 0,
     categoryId: "",
     unit: "",
     imageUrl: "",
@@ -37,9 +38,18 @@ const page = () => {
     const fetchCategories = async () => {
       try {
         if (email) {
-          const data = await readCategories(email)
+          const [data, assoc] = await Promise.all([
+            readCategories(email),
+            getAssociation(email),
+          ])
           if (data)
             setCategories(data)
+          if (assoc?.defaultMinQuantity != null) {
+            setFormData((prev) => ({
+              ...prev,
+              minQuantity: assoc.defaultMinQuantity,
+            }))
+          }
         }
       } catch (error) {
         console.error("Erreur lors du chargement des catégories", error)
@@ -136,6 +146,19 @@ const page = () => {
                 value={formData.price}
                 onChange={handleChange}
               />
+
+              <input
+                type="number"
+                name="quantity"
+                min={0}
+                placeholder="Quantité initiale"
+                className='input input-bordered w-full'
+                value={formData.quantity ?? 0}
+                onChange={handleChange}
+              />
+              <p className='text-xs opacity-60 -mt-2'>
+                Stock de départ du produit (modifiable aussi via &quot;Alimenter le stock&quot;)
+              </p>
 
               <input
                 type="number"

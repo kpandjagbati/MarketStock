@@ -39,6 +39,37 @@ export async function getAssociation(email: string) {
     }
 }
 
+export async function updateAssociationSettings(
+    email: string,
+    data: { name: string; currency: string; defaultMinQuantity: number }
+) {
+    if (!email) {
+        throw new Error("L'email est requis.")
+    }
+    if (!data.name?.trim()) {
+        throw new Error("Le nom de l'association est requis.")
+    }
+
+    try {
+        const association = await getAssociation(email)
+        if (!association) {
+            throw new Error("Aucune association trouvée avec cet email.")
+        }
+
+        return await prisma.association.update({
+            where: { id: association.id },
+            data: {
+                name: data.name.trim(),
+                currency: data.currency || "EUR",
+                defaultMinQuantity: Math.max(0, Number(data.defaultMinQuantity) || 5),
+            },
+        })
+    } catch (error) {
+        console.error(error)
+        throw error
+    }
+}
+
 export async function createCategory(
     name: string,
     email: string,
@@ -144,20 +175,24 @@ export async function readCategories(email: string): Promise<Category[] | undefi
 
 export async function createProduct(formData: FormDataType, email: string) {
     try {
-        const { name, description, price, imageUrl, categoryId, unit, minQuantity } = formData;
+        const { name, description, price, imageUrl, categoryId, unit, minQuantity, quantity } = formData;
         if (!email || !price || !categoryId || !email) {
             throw new Error("Le nom, le prix, la catégorie et l'email de l'association sont requis pour la création du produit.")
         }
         const safeImageUrl = imageUrl || ""
         const safeUnit = unit || ""
-        const safeMinQuantity = Math.max(0, Number(minQuantity) || 5)
-
         const association = await getAssociation(email)
         if (!association) {
             throw new Error("Aucune association trouvée avec cet email.");
         }
 
-        await prisma.product.create({
+        const safeMinQuantity = Math.max(
+            0,
+            Number(minQuantity ?? association.defaultMinQuantity ?? 5)
+        )
+        const safeQuantity = Math.max(0, Number(quantity) || 0)
+
+        const product = await prisma.product.create({
             data: {
                 name,
                 description,
@@ -166,9 +201,22 @@ export async function createProduct(formData: FormDataType, email: string) {
                 categoryId,
                 unit: safeUnit,
                 minQuantity: safeMinQuantity,
+                quantity: safeQuantity,
                 associationId: association.id
             }
         })
+
+        if (safeQuantity > 0) {
+            await prisma.transaction.create({
+                data: {
+                    type: "IN",
+                    quantity: safeQuantity,
+                    productId: product.id,
+                    associationId: association.id,
+                    reason: "Stock initial à la création",
+                }
+            })
+        }
 
     } catch (error) {
         console.error(error)
@@ -177,7 +225,7 @@ export async function createProduct(formData: FormDataType, email: string) {
 
 export async function updateProduct(formData: FormDataType, email: string) {
     try {
-        const { id, name, description, price, imageUrl, minQuantity } = formData;
+        const { id, name, description, price, imageUrl, minQuantity, quantity } = formData;
         if (!email || !price || !id || !email) {
             throw new Error("L'id, le nom, le prix et l'email sont requis pour la mise à jour du produit.")
         }
@@ -186,6 +234,19 @@ export async function updateProduct(formData: FormDataType, email: string) {
         if (!association) {
             throw new Error("Aucune association trouvée avec cet email.");
         }
+
+        const existing = await prisma.product.findFirst({
+            where: {
+                id,
+                associationId: association.id,
+            }
+        })
+        if (!existing) {
+            throw new Error("Produit introuvable.")
+        }
+
+        const nextQuantity = Math.max(0, Number(quantity ?? existing.quantity) || 0)
+        const delta = nextQuantity - existing.quantity
 
         await prisma.product.update({
             where: {
@@ -198,8 +259,21 @@ export async function updateProduct(formData: FormDataType, email: string) {
                 price: Number(price),
                 imageUrl: imageUrl,
                 minQuantity: Math.max(0, Number(minQuantity) || 5),
+                quantity: nextQuantity,
             }
         })
+
+        if (delta !== 0) {
+            await prisma.transaction.create({
+                data: {
+                    type: delta > 0 ? "IN" : "OUT",
+                    quantity: Math.abs(delta),
+                    productId: id,
+                    associationId: association.id,
+                    reason: "Ajustement manuel du stock",
+                }
+            })
+        }
 
     } catch (error) {
         console.error(error)
@@ -333,7 +407,11 @@ export async function replenishStockWithTransaction(productId: string, quantity:
     }
 }
 
-export async function deductStockWithTransaction(orderItems: OrderItem[], email: string) {
+export async function deductStockWithTransaction(
+    orderItems: OrderItem[],
+    email: string,
+    meta?: { beneficiary?: string; reason?: string }
+) {
     try {
 
         if (!email) {
@@ -344,6 +422,9 @@ export async function deductStockWithTransaction(orderItems: OrderItem[], email:
         if (!association) {
             throw new Error("Aucune association trouvée avec cet email.");
         }
+
+        const beneficiary = meta?.beneficiary?.trim() || null
+        const reason = meta?.reason?.trim() || null
 
         for (const item of orderItems) {
             const product = await prisma.product.findUnique({
@@ -381,7 +462,9 @@ export async function deductStockWithTransaction(orderItems: OrderItem[], email:
                         type: "OUT",
                         quantity: item.quantity,
                         productId: item.productId,
-                        associationId: association.id
+                        associationId: association.id,
+                        beneficiary,
+                        reason,
                     }
                 })
             }
@@ -391,7 +474,7 @@ export async function deductStockWithTransaction(orderItems: OrderItem[], email:
         return { success: true }
     } catch (error) {
         console.error(error)
-        return { success: false, message: error }
+        return { success: false, message: error instanceof Error ? error.message : String(error) }
     }
 }
 
