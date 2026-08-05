@@ -1,11 +1,12 @@
 "use client"
 
 import { UserButton, useUser } from '@clerk/nextjs'
-import { ListTree, Menu, PackagePlus, ShoppingBasket, Warehouse, X, HandHeart, Receipt, LayoutDashboard, Settings } from 'lucide-react'
+import { ListTree, Menu, PackagePlus, ShoppingBasket, Warehouse, X, HandHeart, Receipt, LayoutDashboard, Settings, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { checkAndAddAssociation } from '../actions'
+import { checkIsAdmin } from '../admin/actions'
 import Stock from './Stock'
 import ThemeToggle from './ThemeToggle'
 
@@ -14,6 +15,7 @@ const Navbar = () => {
 
     const pathname = usePathname()
     const [menuOpen, setMenuOpen] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
 
     const navLinks = [
         { href: "/", label: "Tableau de Bord", icon: LayoutDashboard },
@@ -29,6 +31,7 @@ const Navbar = () => {
         if (user?.primaryEmailAddress?.emailAddress && user.fullName) {
             checkAndAddAssociation(user?.primaryEmailAddress?.emailAddress, user.fullName)
         }
+        checkIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false))
     }, [user])
 
 
@@ -55,6 +58,16 @@ const Navbar = () => {
                 <Warehouse className='w-4 h-4' />
                 Alimenter le stock
             </button>
+
+            {isAdmin && (
+                <Link
+                    href="/admin"
+                    className={`${baseClass} ${pathname.startsWith('/admin') ? 'btn-primary' : 'btn-ghost'} btn-sm flex gap-2 items-center`}
+                >
+                    <Shield className='w-4 h-4' />
+                    Admin
+                </Link>
+            )}
         </>
     )
 
